@@ -33,9 +33,11 @@ services:
     restart: "no"
 
   # Passkey auth + per-user data (Node, no framework).
-  # image: prebuilt (docker compose pull). build: from source (docker compose up --build).
+  # Fork: always built from THIS checkout (pull_policy: build), never pulled from upstream's
+  # registry — so what runs is exactly the code in this repository.
   api:
-    image: ghcr.io/duartesantos8/opengym-api:latest
+    image: opengym-api:local
+    pull_policy: build
     # Default target: no AI runtime, no AI dependency — the image every instance has always had.
     # To opt into the AI Coach, build the other target instead:
     #     API_TARGET=coach docker compose up --build api
@@ -66,7 +68,8 @@ services:
   # Builds the React frontend (multi-stage) and serves it, proxying /api → api
   # and the exercise media from the shared volume. Single origin for passkeys.
   web:
-    image: ghcr.io/duartesantos8/opengym-web:latest
+    image: opengym-web:local
+    pull_policy: build
     build:
       context: .
       dockerfile: web/Dockerfile
@@ -76,8 +79,11 @@ services:
         condition: service_completed_successfully
       api:
         condition: service_started
+    # Fork: published on 127.0.0.1 only. The Cloudflare tunnel is the way in from outside, and
+    # CF_CONNECTING_IP is only trustworthy when nothing else can reach nginx — a LAN client on
+    # 0.0.0.0 could otherwise forge the header. Set WEB_BIND=0.0.0.0 in .env to open it again.
     ports:
-      - "${WEB_PORT:-8080}:${NGINX_PORT:-80}"
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8080}:${NGINX_PORT:-80}"
     # nginx renders its config at start-up from these (web/nginx.conf.template),
     # so the API service does not have to be called `api`. Defaults are the old
     # hardcoded values, so an existing .env and an existing stack are unaffected.

@@ -1,0 +1,21 @@
+# Attaches the web container to the Docker network your cloudflared container lives on, so the
+# tunnel reaches openGym by name (http://opengym-web:80) instead of through a host port.
+#
+# Enabled from .env (scripts/homelab-setup.sh writes these when it finds cloudflared in Docker):
+#
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.tunnel.yml
+#   TUNNEL_NETWORK=<the cloudflared container's network>
+#
+# Only `web` joins that network. The API stays on openGym's own network, reachable only through
+# nginx — which is what makes TRUST_PROXY and CF_CONNECTING_IP safe to believe.
+services:
+  web:
+    networks:
+      default: {}
+      tunnel:
+        aliases: [opengym-web]
+
+networks:
+  tunnel:
+    name: ${TUNNEL_NETWORK:?set TUNNEL_NETWORK in .env to the cloudflared container's network}
+    external: true
