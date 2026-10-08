@@ -1,0 +1,24 @@
+# HTTPS in front of openGym's web container. Rendered from the environment at start-up:
+#   ACME_HOST     the hostname, e.g. gym.example.com (an A record pointing at a LAN address)
+#   CF_API_TOKEN  Cloudflare token with Zone.Zone:Read + Zone.DNS:Edit on that zone
+#                 (from caddy/caddy.env — never from .env, which the api container also reads)
+{
+	# Only 443 is published; the usual :80 redirect listener has nobody to serve.
+	auto_https disable_redirects
+}
+
+{$ACME_HOST} {
+	tls {
+		dns cloudflare {env.CF_API_TOKEN}
+		# Ask Cloudflare's public resolver whether the TXT record is there, not the LAN's
+		# (AdGuard / FRITZ!Box may cache or rewrite the name).
+		resolvers 1.1.1.1 1.0.0.1
+	}
+
+	reverse_proxy web:80 {
+		# The web container trusts this header (CF_CONNECTING_IP in .env) as the visitor's
+		# address. Set here from the real peer, replacing anything the client sent, so it cannot
+		# be forged — the web container itself is only published on 127.0.0.1.
+		header_up CF-Connecting-IP {remote_host}
+	}
+}

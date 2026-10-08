@@ -21,3 +21,8 @@ node_modules
 junit.xml
 coverage/
 frontend/bundle-size.json
+
+# Caddy (docker-compose.https.yml): Cloudflare token, certificates, runtime config
+caddy/caddy.env
+caddy/data/
+caddy/config/

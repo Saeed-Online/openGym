@@ -1,0 +1,25 @@
+# HTTPS on a LAN-only address — scripts/homelab-setup.sh --https <hostname> writes the .env that
+# enables this file (COMPOSE_FILE=docker-compose.yml:docker-compose.https.yml).
+#
+# Caddy terminates TLS with a real Let's Encrypt certificate obtained over a Cloudflare DNS-01
+# challenge, and proxies to the web container. Published on the LAN address only: reachable from
+# the home network and over WireGuard, not from the internet.
+services:
+  caddy:
+    image: opengym-caddy:local
+    pull_policy: build
+    build:
+      context: ./caddy
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_started
+    ports:
+      - "${HTTPS_BIND:?run scripts/homelab-setup.sh --https first}:${HTTPS_PORT:-443}:443"
+    environment:
+      - ACME_HOST=${ACME_HOST:?set ACME_HOST in .env}
+    # The Cloudflare token lives here only — .env is also handed to the api container.
+    env_file: ./caddy/caddy.env
+    volumes:
+      - ./caddy/data:/data       # certificates and the ACME account — keep it, or every restart
+      - ./caddy/config:/config   # asks Let's Encrypt again (and runs into its rate limits)
